@@ -21,6 +21,7 @@ GCS_SOURCE_PATH="$(curl -f -H Metadata-Flavor:Google ${URL}/daisy-sources-path)"
 gsutil cp "${GCS_SOURCE_PATH}/translate_el.py" /tmp/translate_el.py
 
 # Install dependencies
+apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get -y install python-guestfs python-pycurl
 
 # Customize image

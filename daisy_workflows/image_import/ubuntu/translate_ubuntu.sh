@@ -21,6 +21,7 @@ GCS_SOURCE_PATH="$(curl -f -H Metadata-Flavor:Google ${URL}/daisy-sources-path)"
 gsutil cp "${GCS_SOURCE_PATH}/translate_ubuntu.py" /tmp/translate_ubuntu.py
 
 # Install dependencies
+apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get -y install python-guestfs python-pycurl tinyproxy
 
 # cloud-init command uses GCE API, as libguestfs executes inside qemu, it uses a
