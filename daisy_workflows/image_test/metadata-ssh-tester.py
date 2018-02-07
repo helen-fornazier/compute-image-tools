@@ -43,7 +43,7 @@ def gen_ssh_key():
   return "tester:" + data, key_name
 
 
-def get_metadata_keys(md_key, level):
+def get_metadata(level):
   if level == PROJECT_LEVEL:
     request = COMPUTE.projects().get(project=PROJECT, zone=ZONE, instance=TESTEE)
     md_id = 'commonInstanceMetadata'
@@ -51,12 +51,7 @@ def get_metadata_keys(md_key, level):
     request = COMPUTE.instances().get(project=PROJECT, zone=ZONE, instance=TESTEE)
     md_id = 'metadata'
   response = request.execute()
-  items = response[md_id]['items']
-  try:
-    md_item = (md for md in items if md['key'] == md_key).next()
-  except StopIteration:
-    md_item = None
-  return md_item, response[md_id]
+  return response[md_id]
 
 
 def set_metadata(md_obj, level):
@@ -67,22 +62,30 @@ def set_metadata(md_obj, level):
   response = request.execute()
 
 
-def add_key(md_key, level):
+def extract_key_item(md_obj, md_key):
+  try:
+    md_item = (md for md in md_obj['items'] if md['key'] == md_key).next()
+  except StopIteration:
+    md_item = None
+  return md_item
+
+
+def add_key(md_obj, md_key):
   key, key_name = gen_ssh_key()
-  md_item, md_obj = get_metadata_keys(md_key, level)
+  md_item = extract_key_item(md_obj, md_key)
   if not md_item:
     md_item = {'key': md_key, 'value': key}
     md_obj['items'].append(md_item)
   else:
     md_item['value'] = '\n'.join([md_item['value'], key])
-  set_metadata(md_obj, level)
   return key_name
 
 
-def remove_key_instance_level(md_key, key):
-  md_item, md_obj = get_metadata_keys(md_key, INSTANCE_LEVEL)
+def remove_key(md_obj, md_key, key):
+  md_item = extract_key_item(md_obj, md_key)
   md_item['value'] = re.sub('.*%s.*\n?' % key, '', md_item['value'])
-  set_metadata(md_obj, INSTANCE_LEVEL)
+  if not md_item['value']:
+    md_obj['items'].remove(md_item)
 
 
 def test_login(key, expect_fail=False):
@@ -99,9 +102,13 @@ def test_login(key, expect_fail=False):
 
 
 def test_login_ssh_instance_level_key():
-  key = add_key(SSH_KEYS, INSTANCE_LEVEL)
+  md_obj = get_metadata(INSTANCE_LEVEL)
+  key = add_key(md_obj, SSH_KEYS)
+  set_metadata(md_obj, INSTANCE_LEVEL)
   test_login(key)
-  remove_key_instance_level(SSH_KEYS, key)
+  md_obj = get_metadata(INSTANCE_LEVEL)
+  remove_key(md_obj, SSH_KEYS, key)
+  set_metadata(md_obj, INSTANCE_LEVEL)
   test_login(key, expect_fail=True)
 
 
@@ -115,14 +122,16 @@ def test_login_ssh_project_level_key():
 '''
 
 def test_ssh_keys_with_sshKeys():
-  ssh_keys_key = add_key(SSH_KEYS, INSTANCE_LEVEL)
-  time.sleep(5)
-  sshKey_key = add_key(SSHKEYS, INSTANCE_LEVEL)
+  md_obj = get_metadata(INSTANCE_LEVEL)
+  ssh_keys_key = add_key(md_obj, SSH_KEYS)
+  sshKey_key = add_key(md_obj, SSHKEYS)
+  set_metadata(md_obj, INSTANCE_LEVEL)
   test_login(ssh_keys_key)
   test_login(sshKey_key)
-  remove_key_instance_level(SSH_KEYS, ssh_keys_key)
-  time.sleep(5)
-  remove_key_instance_level(SSHKEYS, sshKey_key)
+  md_obj = get_metadata(INSTANCE_LEVEL)
+  remove_key(md_obj, SSH_KEYS, ssh_keys_key)
+  remove_key(md_obj, SSHKEYS, sshKey_key)
+  set_metadata(md_obj, INSTANCE_LEVEL)
   test_login(ssh_keys_key, expect_fail=True)
   test_login(sshKey_key, expect_fail=True)
 
