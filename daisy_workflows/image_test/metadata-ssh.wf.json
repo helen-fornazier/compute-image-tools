@@ -4,8 +4,9 @@
     "source_image": {"Required": true, "Description": "Image to be tested"}
   },
   "Sources": {
-    "metadata-ssh-tester.sh": "./scripts/metadata-ssh-tester.sh",
-    "metadata-ssh-testee.sh": "./scripts/metadata-ssh-testee.sh"
+    "test_files/test.py": "./metadata-ssh-tester.py",
+    "test_files/utils.py": "./linux_common/utils.py",
+    "startup_tester": "./linux_common/bootstrap.py"
   },
   "Steps": {
     "create-disk-tester": {
@@ -33,9 +34,13 @@
         {
           "Name": "inst-metadata-ssh-tester",
           "Disks": [{"Source": "disk-tester"}],
-          "StartupScript": "metadata-ssh-tester.sh",
+          "StartupScript": "startup_tester",
           "metadata": {
-            "testee": "inst-metadata-ssh-testee-${NAME}-${ID}"
+            "test_files_gcs_dir": "${SOURCESPATH}/test_files",
+            "test_script": "test.py",
+            "testee": "inst-metadata-ssh-testee-${NAME}-${ID}",
+            "zone": "${ZONE}",
+            "project": "${PROJECT}"
           },
           "Scopes": [
             "https://www.googleapis.com/auth/devstorage.read_only",
@@ -49,7 +54,9 @@
         {
           "Name": "inst-metadata-ssh-testee",
           "Disks": [{"Source": "disk-testee"}],
-          "StartupScript": "metadata-ssh-testee.sh"
+          "metadata": {
+            "startup-script": "echo BOOTED"
+          }
         }
       ]
     },
@@ -66,14 +73,14 @@
       ]
     },
     "wait-for-tester": {
-      "Timeout": "5m",
+      "Timeout": "30m",
       "WaitForInstancesSignal": [
         {
           "Name": "inst-metadata-ssh-tester",
           "SerialOutput": {
             "Port": 1,
-            "SuccessMatch": "MetadataSshTestSuccess",
-            "FailureMatch": "MetadataSshTestFailed"
+            "SuccessMatch": "TestSuccess",
+            "FailureMatch": "TestFailed"
           }
         }
       ]
