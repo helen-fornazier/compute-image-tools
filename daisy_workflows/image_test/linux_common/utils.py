@@ -19,7 +19,9 @@ import logging
 import os
 import subprocess
 import sys
+import time
 import trace
+import traceback
 import urllib2
 
 
@@ -35,7 +37,7 @@ def AptGetInstall(package_list):
   env = os.environ.copy()
   env['DEBIAN_FRONTEND'] = 'noninteractive'
   return Execute(['apt-get', '-q', '-y', 'install'] + package_list, env=env)
-AptGetInstall.first_run = False #TODO change this
+AptGetInstall.first_run = True
 
 
 def Execute(cmd, cwd=None, capture_output=False, env=None, raise_errors=True):
@@ -57,7 +59,7 @@ def Execute(cmd, cwd=None, capture_output=False, env=None, raise_errors=True):
       logging.exception('Command returned error status %d', returncode)
   if output:
     logging.info(output)
-  return returncode, output, None
+  return returncode, output
 
 
 def HttpGet(url, headers=None):
@@ -90,10 +92,11 @@ def RunTest(test_func):
     tracer = trace.Trace(
         ignoredirs=[sys.prefix, sys.exec_prefix], trace=1, count=0)
     tracer.runfunc(test_func)
-    print('TestSuccess: Translation finished.')
+    print('TestSuccess: Test finished.')
   except Exception as e:
     print('TestFailed: error: ')
     print(str(e))
+    traceback.print_exc()
 
 
 def SetupLogging():
