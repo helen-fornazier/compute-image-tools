@@ -36,9 +36,11 @@ SSHKEYS = 'sshKeys'
 INSTANCE_LEVEL = 1
 PROJECT_LEVEL = 2
 
+
 def gen_ssh_key():
   key_name = 'daisy-test-key-' + str(uuid.uuid4())
-  utils.Execute(['ssh-keygen', '-t', 'rsa', '-N', '', '-f', key_name, '-C', key_name])
+  utils.Execute(
+      ['ssh-keygen', '-t', 'rsa', '-N', '', '-f', key_name, '-C', key_name])
   with open(key_name + '.pub', 'r') as original: data = original.read()
   return "tester:" + data, key_name
 
@@ -48,7 +50,8 @@ def get_metadata(level):
     request = COMPUTE.projects().get(project=PROJECT)
     md_id = 'commonInstanceMetadata'
   else:
-    request = COMPUTE.instances().get(project=PROJECT, zone=ZONE, instance=TESTEE)
+    request = COMPUTE.instances().get(
+        project=PROJECT, zone=ZONE, instance=TESTEE)
     md_id = 'metadata'
   response = request.execute()
   return response[md_id]
@@ -56,9 +59,11 @@ def get_metadata(level):
 
 def set_metadata(md_obj, level):
   if level == PROJECT_LEVEL:
-    request = COMPUTE.projects().setCommonInstanceMetadata(project=PROJECT, body=md_obj)
+    request = COMPUTE.projects().setCommonInstanceMetadata(
+        project=PROJECT, body=md_obj)
   else:
-    request = COMPUTE.instances().setMetadata(project=PROJECT, zone=ZONE, instance=TESTEE, body=md_obj)
+    request = COMPUTE.instances().setMetadata(
+        project=PROJECT, zone=ZONE, instance=TESTEE, body=md_obj)
   response = request.execute()
 
 
@@ -103,7 +108,10 @@ def remove_key_single(key, md_key, level):
 
 def test_login(key, expect_fail=False):
   for try_again in range(3):
-    ret, _ = utils.Execute(['ssh', '-i', key, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', 'tester@' + TESTEE, 'echo', 'Logged'], raise_errors=False)
+    ret, _ = utils.Execute(
+        ['ssh', '-i', key, '-o', 'StrictHostKeyChecking=no', '-o',
+        'UserKnownHostsFile=/dev/null', 'tester@' + TESTEE, 'echo', 'Logged'],
+        raise_errors=False)
     if expect_fail and ret == 0:
       error = 'SSH Loging succeeded when expected to fail'
     elif not expect_fail and ret != 0:
@@ -204,6 +212,7 @@ def main():
   test_ssh_keys_mixed_project_instance_level()
   test_sshKeys_ignores_project_level_keys()
   test_block_project_ssh_keys_ignores_project_level_keys()
+
 
 if __name__=='__main__':
   utils.RunTest(main) 
