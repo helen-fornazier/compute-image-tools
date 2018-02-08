@@ -114,6 +114,18 @@ def test_login(key, expect_fail=False):
   raise ValueError(error)
 
 
+def set_block_project_ssh_keys(state):
+  md_obj = get_metadata(INSTANCE_LEVEL)
+  md_key = 'block-project-ssh-keys'
+  md_item = extract_key_item(md_obj, md_key)
+  if not md_item:
+    md_item = {'key': md_key, 'value': state}
+    md_obj['items'].append(md_item)
+  else:
+    md_item['value'] = state
+  set_metadata(md_obj, INSTANCE_LEVEL)
+
+
 def test_login_ssh_keys(level):
   key = add_key_single(SSH_KEYS, level)
   test_login(key)
@@ -135,7 +147,7 @@ def test_ssh_keys_with_sshKeys(level):
   test_login(ssh_keys_key, expect_fail=True)
   test_login(sshKey_key, expect_fail=True)
 
-'''
+
 def test_ssh_keys_mixed_project_instance_level():
   i_key = add_key_single(SSH_KEYS, INSTANCE_LEVEL)
   p_key = add_key_single(SSH_KEYS, PROJECT_LEVEL)
@@ -161,19 +173,18 @@ def test_sshKeys_ignores_project_level_keys():
 
 def test_block_project_ssh_keys_ignores_project_level_keys():
   set_block_project_ssh_keys(True)
-  i_key = add_ssh_keys_instance_level()
-  p_key = add_ssh_keys_project_level()
+  p_key = add_key_single(SSH_KEYS, PROJECT_LEVEL)
+  i_key = add_key_single(SSH_KEYS, INSTANCE_LEVEL)
   test_login(p_key, expect_fail=True)
   test_login(i_key)
   set_block_project_ssh_keys(False)
   test_login(p_key)
   test_login(i_key)
-  remove_ssh_keys_instance_level(i_key)
-  remove_ssh_keys_project_level(p_key)
+  remove_key_single(i_key, SSH_KEYS, INSTANCE_LEVEL)
+  remove_key_single(p_key, SSH_KEYS, PROJECT_LEVEL)
   test_login(p_key, expect_fail=True)
   test_login(i_key, expect_fail=True)
 
-'''
 
 def main():
   global COMPUTE
@@ -190,12 +201,9 @@ def main():
   test_login_ssh_keys(PROJECT_LEVEL)
   test_ssh_keys_with_sshKeys(INSTANCE_LEVEL)
   test_ssh_keys_with_sshKeys(PROJECT_LEVEL)
-
-'''
   test_ssh_keys_mixed_project_instance_level()
   test_sshKeys_ignores_project_level_keys()
   test_block_project_ssh_keys_ignores_project_level_keys()
-'''
 
 if __name__=='__main__':
   utils.RunTest(main) 
