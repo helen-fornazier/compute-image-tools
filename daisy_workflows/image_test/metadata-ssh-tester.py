@@ -45,7 +45,7 @@ def gen_ssh_key():
 
 def get_metadata(level):
   if level == PROJECT_LEVEL:
-    request = COMPUTE.projects().get(project=PROJECT, zone=ZONE, instance=TESTEE)
+    request = COMPUTE.projects().get(project=PROJECT)
     md_id = 'commonInstanceMetadata'
   else:
     request = COMPUTE.instances().get(project=PROJECT, zone=ZONE, instance=TESTEE)
@@ -56,7 +56,7 @@ def get_metadata(level):
 
 def set_metadata(md_obj, level):
   if level == PROJECT_LEVEL:
-    request = COMPUTE.projects().setCommonInstanceMetadata(project=PROJECT, zone=ZONE, instance=TESTEE, body=md_obj)
+    request = COMPUTE.projects().setCommonInstanceMetadata(project=PROJECT, body=md_obj)
   else:
     request = COMPUTE.instances().setMetadata(project=PROJECT, zone=ZONE, instance=TESTEE, body=md_obj)
   response = request.execute()
@@ -88,6 +88,19 @@ def remove_key(md_obj, md_key, key):
     md_obj['items'].remove(md_item)
 
 
+def add_key_single(md_key, level):
+  md_obj = get_metadata(level)
+  key = add_key(md_obj, md_key)
+  set_metadata(md_obj, level)
+  return key
+
+
+def remove_key_single(key, md_key, level):
+  md_obj = get_metadata(level)
+  remove_key(md_obj, md_key, key)
+  set_metadata(md_obj, level)
+
+
 def test_login(key, expect_fail=False):
   for try_again in range(3):
     ret, _ = utils.Execute(['ssh', '-i', key, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', 'tester@' + TESTEE, 'echo', 'Logged'], raise_errors=False)
@@ -101,61 +114,48 @@ def test_login(key, expect_fail=False):
   raise ValueError(error)
 
 
-def test_login_ssh_instance_level_key():
-  md_obj = get_metadata(INSTANCE_LEVEL)
-  key = add_key(md_obj, SSH_KEYS)
-  set_metadata(md_obj, INSTANCE_LEVEL)
+def test_login_ssh_keys(level):
+  key = add_key_single(SSH_KEYS, level)
   test_login(key)
-  md_obj = get_metadata(INSTANCE_LEVEL)
-  remove_key(md_obj, SSH_KEYS, key)
-  set_metadata(md_obj, INSTANCE_LEVEL)
+  remove_key_single(key, SSH_KEYS, level)
   test_login(key, expect_fail=True)
 
 
-'''
-def test_login_ssh_project_level_key():
-  key = add_key(SSH_KEYS, PROJECT_LEVEL)
-  test_login(key)
-  remove_ssh_keys_project_level()
-  test_login(key, expect_fail=True)
-
-'''
-
-def test_ssh_keys_with_sshKeys():
-  md_obj = get_metadata(INSTANCE_LEVEL)
+def test_ssh_keys_with_sshKeys(level):
+  md_obj = get_metadata(level)
   ssh_keys_key = add_key(md_obj, SSH_KEYS)
   sshKey_key = add_key(md_obj, SSHKEYS)
-  set_metadata(md_obj, INSTANCE_LEVEL)
+  set_metadata(md_obj, level)
   test_login(ssh_keys_key)
   test_login(sshKey_key)
-  md_obj = get_metadata(INSTANCE_LEVEL)
+  md_obj = get_metadata(level)
   remove_key(md_obj, SSH_KEYS, ssh_keys_key)
   remove_key(md_obj, SSHKEYS, sshKey_key)
-  set_metadata(md_obj, INSTANCE_LEVEL)
+  set_metadata(md_obj, level)
   test_login(ssh_keys_key, expect_fail=True)
   test_login(sshKey_key, expect_fail=True)
 
 '''
 def test_ssh_keys_mixed_project_instance_level():
-  i_key = add_ssh_keys_instance_level()
-  p_key = add_ssh_keys_project_level()
+  i_key = add_key_single(SSH_KEYS, INSTANCE_LEVEL)
+  p_key = add_key_single(SSH_KEYS, PROJECT_LEVEL)
   test_login(p_key)
   test_login(i_key)
-  remove_ssh_keys_instance_level(i_key)
-  remove_ssh_keys_project_level(p_key)
+  remove_key_single(i_key, SSH_KEYS, INSTANCE_LEVEL)
+  remove_key_single(p_key, SSH_KEYS, PROJECT_LEVEL)
   test_login(p_key, expect_fail=True)
   test_login(i_key, expect_fail=True)
 
 
 def test_sshKeys_ignores_project_level_keys():
-  ssh_keys_key = add_ssh_keys_project_level()
-  sshKey_key = add_sshKey_instance_level()
+  ssh_keys_key = add_key_single(SSH_KEYS, PROJECT_LEVEL)
+  sshKey_key = add_key_single(SSHKEYS, INSTANCE_LEVEL)
   test_login(ssh_keys_key, expect_fail=True)
   test_login(sshKey_key)
-  remove_sshKey_instance_level(sshKey_key)
+  remove_key_single(sshKey_key, SSHKEYS, INSTANCE_LEVEL)
   test_login(sshKey_key, expect_fail=True)
   test_login(ssh_keys_key)
-  remove_ssh_keys_project_level(ssh_keys_key)
+  remove_key_single(ssh_keys_key, SSH_KEYS, PROJECT_LEVEL)
   test_login(ssh_keys_key, expect_fail=True)
 
 
@@ -173,16 +173,6 @@ def test_block_project_ssh_keys_ignores_project_level_keys():
   test_login(p_key, expect_fail=True)
   test_login(i_key, expect_fail=True)
 
-
-def test_ssh_keys_sshKeys_project_level():
-  ssh_keys_key = add_ssh_keys_project_level()
-  sshKey_key = add_sshKey_project_level()
-  test_login(ssh_keys_key)
-  test_login(sshKey_key)
-  remove_sshKey_project_level(sshKey_key)
-  remove_ssh_keys_project_level(ssh_keys_key)
-  test_login(sshKey_key, expect_fail=True)
-  test_login(ssh_keys_key, expect_fail=True)
 '''
 
 def main():
@@ -196,15 +186,15 @@ def main():
   PROJECT = utils.GetMetadataParam('project')
   TESTEE = utils.GetMetadataParam('testee')
 
-  test_login_ssh_instance_level_key()
-  # test_login_ssh_project_level_key()
-  test_ssh_keys_with_sshKeys()
+  test_login_ssh_keys(INSTANCE_LEVEL)
+  test_login_ssh_keys(PROJECT_LEVEL)
+  test_ssh_keys_with_sshKeys(INSTANCE_LEVEL)
+  test_ssh_keys_with_sshKeys(PROJECT_LEVEL)
 
 '''
   test_ssh_keys_mixed_project_instance_level()
   test_sshKeys_ignores_project_level_keys()
   test_block_project_ssh_keys_ignores_project_level_keys()
-  test_ssh_keys_sshKeys_project_level()
 '''
 
 if __name__=='__main__':
