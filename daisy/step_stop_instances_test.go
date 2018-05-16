@@ -51,6 +51,10 @@ func TestStopInstancesValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := (&StopInstances{Instances: []string{"instance1"}}).validate(ctx, s); err != nil {
+		t.Errorf("validation should not have failed: %v", err)
+	}
+
 	if err := (&StopInstances{Instances: []string{"dne"}}).validate(ctx, s); err == nil {
 		t.Error("StopInstances should have returned an error when stopping an instance that DNE")
 	}
@@ -64,10 +68,10 @@ func TestStopInstancesRun(t *testing.T) {
 	ins := []*Resource{{RealName: "in0", link: "link"}, {RealName: "in1", link: "link"}}
 	w.instances.m = map[string]*Resource{"in0": ins[0], "in1": ins[1]}
 
-	dr := &StopInstances{
+	si := &StopInstances{
 		Instances: []string{"in0"},
 	}
-	if err := dr.run(ctx, s); err != nil {
+	if err := si.run(ctx, s); err != nil {
 		t.Fatalf("error running StopInstances.run(): %v", err)
 	}
 
